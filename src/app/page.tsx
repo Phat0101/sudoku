@@ -1,113 +1,226 @@
-import Image from "next/image";
+'use client'
 
-export default function Home() {
+import React, { useState } from 'react'
+import Image from 'next/image'
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Card, CardContent } from "@/components/ui/card"
+import { Upload, Undo2, RotateCcw, Check } from 'lucide-react'
+import { parseImageToSudoku } from "./actions"
+import { solveSudoku } from "@/lib/solve"
+
+export default function SudokuSolverComponent(): React.ReactElement {
+  const [image, setImage] = useState<string | null>(null)
+  const [grid, setGrid] = useState<(number | null)[][]>(Array(9).fill(null).map(() => Array(9).fill(null)))
+  const [solvedGrid, setSolvedGrid] = useState<number[][]>([])
+  const [history, setHistory] = useState<(number | null)[][][]>([])
+  const [isSolving, setIsSolving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [isParsing, setIsParsing] = useState(false)
+  const [parseStatus, setParseStatus] = useState<'idle' | 'parsing' | 'success' | 'error'>('idle')
+
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (file) {
+      const imageUrl = URL.createObjectURL(file)
+      setImage(imageUrl)
+      setIsParsing(true)
+      setParseStatus('parsing')
+      
+      const reader = new FileReader()
+      reader.onloadend = async () => {
+        const base64data = reader.result as string
+        try {
+          const parsedGrid = await parseImageToSudoku(base64data)
+          setGrid(parsedGrid.map(row => row.map(cell => cell === 0 ? null : cell)))
+          setHistory([parsedGrid])
+          setParseStatus('success')
+        } catch (error) {
+          setError('Failed to process Sudoku image')
+          setParseStatus('error')
+        } finally {
+          setIsParsing(false)
+        }
+      }
+      reader.readAsDataURL(file)
+    }
+  }
+
+  const handleCellChange = (row: number, col: number, value: string) => {
+    const newGrid = grid.map(r => [...r]);
+    // Only allow single digits
+    if (value === '' || /^[1-9]$/.test(value)) {
+      const numValue = value === '' ? null : parseInt(value);
+      newGrid[row][col] = numValue;
+      setGrid(newGrid);
+      setHistory([...history, newGrid]);
+    }
+  };
+
+  const handleUndo = () => {
+    if (history.length > 1) {
+      const newHistory = [...history]
+      newHistory.pop()
+      setHistory(newHistory)
+      setGrid(newHistory[newHistory.length - 1])
+    }
+  }
+
+  const handleReset = () => {
+    setGrid(Array(9).fill(null).map(() => Array(9).fill(null)))
+    setHistory([])
+    setSolvedGrid([])
+    setImage(null)
+  }
+
+  const handleSolve = async () => {
+    setIsSolving(true)
+    setError(null)
+    
+    try {
+      const solved = await solveSudoku(grid.map(row => row.map(cell => cell === null ? 0 : cell)))
+      if (solved) {
+        setSolvedGrid(solved)
+      } else {
+        setError('No solution exists for this puzzle')
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'An error occurred while solving')
+    } finally {
+      setIsSolving(false)
+    }
+  }
+
   return (
-    <main className="flex min-h-screen flex-col items-center justify-between p-24">
-      <div className="z-10 w-full max-w-5xl items-center justify-between font-mono text-sm lg:flex">
-        <p className="fixed left-0 top-0 flex w-full justify-center border-b border-gray-300 bg-gradient-to-b from-zinc-200 pb-6 pt-8 backdrop-blur-2xl dark:border-neutral-800 dark:bg-zinc-800/30 dark:from-inherit lg:static lg:w-auto  lg:rounded-xl lg:border lg:bg-gray-200 lg:p-4 lg:dark:bg-zinc-800/30">
-          Get started by editing&nbsp;
-          <code className="font-mono font-bold">src/app/page.tsx</code>
-        </p>
-        <div className="fixed bottom-0 left-0 flex h-48 w-full items-end justify-center bg-gradient-to-t from-white via-white dark:from-black dark:via-black lg:static lg:size-auto lg:bg-none">
-          <a
-            className="pointer-events-none flex place-items-center gap-2 p-8 lg:pointer-events-auto lg:p-0"
-            href="https://vercel.com?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            By{" "}
-            <Image
-              src="/vercel.svg"
-              alt="Vercel Logo"
-              className="dark:invert"
-              width={100}
-              height={24}
-              priority
-            />
-          </a>
-        </div>
-      </div>
+    <div className="min-h-screen bg-gray-100 py-8 px-4 sm:px-6 lg:px-8">
+      <Card className="max-w-4xl mx-auto">
+        <CardContent className="p-6">
+          <h1 className="text-2xl font-bold mb-6 text-center">Sudoku Solver</h1>
 
-      <div className="relative z-[-1] flex place-items-center before:absolute before:h-[300px] before:w-full before:-translate-x-1/2 before:rounded-full before:bg-gradient-radial before:from-white before:to-transparent before:blur-2xl before:content-[''] after:absolute after:-z-20 after:h-[180px] after:w-full after:translate-x-1/3 after:bg-gradient-conic after:from-sky-200 after:via-blue-200 after:blur-2xl after:content-[''] before:dark:bg-gradient-to-br before:dark:from-transparent before:dark:to-blue-700 before:dark:opacity-10 after:dark:from-sky-900 after:dark:via-[#0141ff] after:dark:opacity-40 sm:before:w-[480px] sm:after:w-[240px] before:lg:h-[360px]">
-        <Image
-          className="relative dark:drop-shadow-[0_0_0.3rem_#ffffff70] dark:invert"
-          src="/next.svg"
-          alt="Next.js Logo"
-          width={180}
-          height={37}
-          priority
-        />
-      </div>
+          <div className="flex flex-col lg:flex-row gap-6">
+            <div className="lg:w-1/2">
+              <div className="mb-6">
+                <Input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleFileUpload}
+                  className="hidden"
+                  id="file-upload"
+                />
+                <label htmlFor="file-upload" className="cursor-pointer">
+                  <div className="flex items-center justify-center w-full h-32 border-2 border-dashed border-gray-300 rounded-lg hover:border-gray-400 transition-colors">
+                    <div className="text-center">
+                      <Upload className="mx-auto h-12 w-12 text-gray-400" />
+                      <span className="mt-2 block text-sm font-medium text-gray-900">
+                        Upload Sudoku Image
+                      </span>
+                    </div>
+                  </div>
+                </label>
+              </div>
 
-      <div className="mb-32 grid text-center lg:mb-0 lg:w-full lg:max-w-5xl lg:grid-cols-4 lg:text-left">
-        <a
-          href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className="mb-3 text-2xl font-semibold">
-            Docs{" "}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className="m-0 max-w-[30ch] text-sm opacity-50">
-            Find in-depth information about Next.js features and API.
-          </p>
-        </a>
+              {image && (
+                <>
+                  <div className="mb-2">
+                    <Image
+                      src={image}
+                      alt="Uploaded Sudoku"
+                      width={300}
+                      height={300}
+                      className="w-full object-contain"
+                    />
+                  </div>
+                  <div className={`text-sm font-medium text-center mb-6 ${
+                    parseStatus === 'parsing' ? 'text-blue-600' :
+                    parseStatus === 'success' ? 'text-green-600' :
+                    parseStatus === 'error' ? 'text-red-600' : ''
+                  }`}>
+                    {parseStatus === 'parsing' && (
+                      <div className="flex items-center justify-center gap-2">
+                        <span className="animate-spin">⏳</span> Parsing image...
+                      </div>
+                    )}
+                    {parseStatus === 'success' && (
+                      <div className="flex items-center justify-center gap-2">
+                        <Check className="h-4 w-4" /> Parsing complete
+                      </div>
+                    )}
+                    {parseStatus === 'error' && (
+                      <div className="flex items-center justify-center gap-2 text-red-600">
+                        ❌ Failed to parse image
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
+            </div>
 
-        <a
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className="mb-3 text-2xl font-semibold">
-            Learn{" "}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className="m-0 max-w-[30ch] text-sm opacity-50">
-            Learn about Next.js in an interactive course with&nbsp;quizzes!
-          </p>
-        </a>
+            <div className="lg:w-1/2">
+              <div className="grid grid-cols-9 gap-[1px] bg-gray-400 border-2 border-gray-900 mb-6">
+                {grid.map((row, rowIndex) =>
+                  row.map((cell, colIndex) => (
+                    <div key={`${rowIndex}-${colIndex}`} className="relative w-full pb-[100%]">
+                      <input
+                        key={`${rowIndex}-${colIndex}`}
+                        type="text"
+                        inputMode="numeric"
+                        pattern="[1-9]"
+                        maxLength={1}
+                        value={solvedGrid.length > 0 && cell === null ? solvedGrid[rowIndex][colIndex] : cell ?? ''}
+                        onChange={(e) => handleCellChange(rowIndex, colIndex, e.target.value)}
+                        className={`absolute inset-0 w-full h-full text-center text-base sm:text-lg font-medium 
+                          border-[0.5px] border-gray-300
+                          focus:outline-none focus:ring-2 focus:ring-blue-500 
+                          ${
+                            solvedGrid.length > 0 
+                              ? cell === null 
+                                ? 'bg-green-100 text-blue-600'
+                                : 'bg-white text-gray-900'
+                              : cell !== null && !/^[1-9]$/.test(cell.toString())
+                              ? 'bg-red-200'
+                              : 'bg-white'
+                          }
+                          ${(rowIndex + 1) % 3 === 0 && rowIndex < 8 ? 'border-b-[2px] border-b-gray-900' : ''}
+                          ${(colIndex + 1) % 3 === 0 && colIndex < 8 ? 'border-r-[2px] border-r-gray-900' : ''}
+                          `}
+                        readOnly={isSolving || solvedGrid.length > 0}
+                        style={{
+                          margin: 0,
+                          padding: 0,
+                          lineHeight: '100%'
+                        }}
+                      />
+                    </div>
+                  ))
+                )}
+              </div>
 
-        <a
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className="mb-3 text-2xl font-semibold">
-            Templates{" "}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className="m-0 max-w-[30ch] text-sm opacity-50">
-            Explore starter templates for Next.js.
-          </p>
-        </a>
-
-        <a
-          href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className="mb-3 text-2xl font-semibold">
-            Deploy{" "}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className="m-0 max-w-[30ch] text-balance text-sm opacity-50">
-            Instantly deploy your Next.js site to a shareable URL with Vercel.
-          </p>
-        </a>
-      </div>
-    </main>
-  );
+              <div className="flex flex-col sm:flex-row justify-between gap-4 mb-6">
+                <Button onClick={handleUndo} disabled={history.length <= 1 || isSolving} className="flex-1 sm:flex-initial">
+                  <Undo2 className="mr-2 h-4 w-4" /> Undo
+                </Button>
+                <Button onClick={handleReset} variant="outline" disabled={isSolving} className="flex-1 sm:flex-initial">
+                  <RotateCcw className="mr-2 h-4 w-4" /> Reset
+                </Button>
+                <Button onClick={handleSolve} disabled={isSolving} className="flex-1 sm:flex-initial">
+                  {isSolving ? (
+                    <>
+                      <span className="animate-spin mr-2">⏳</span> Solving...
+                    </>
+                  ) : (
+                    <>
+                      <Check className="mr-2 h-4 w-4" /> Solve
+                    </>
+                  )}
+                </Button>
+              </div>
+              {error && (
+                <div className="text-red-500 text-center mt-2">{error}</div>
+              )}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  )
 }
