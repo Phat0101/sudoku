@@ -8,6 +8,8 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Upload, Undo2, RotateCcw, Check } from 'lucide-react'
 import { parseImageToSudoku } from "./actions"
 import { solveSudoku } from "@/lib/solve"
+import { CameraView } from '@/components/Camera'
+import { Camera as CameraIcon } from 'lucide-react'
 
 export default function SudokuSolverComponent(): React.ReactElement {
   const [image, setImage] = useState<string | null>(null)
@@ -18,6 +20,8 @@ export default function SudokuSolverComponent(): React.ReactElement {
   const [error, setError] = useState<string | null>(null)
   const [isParsing, setIsParsing] = useState(false)
   const [parseStatus, setParseStatus] = useState<'idle' | 'parsing' | 'success' | 'error'>('idle')
+  const [showCamera, setShowCamera] = useState(false)
+  const cameraRef = React.useRef<any>(null)
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
@@ -46,6 +50,25 @@ export default function SudokuSolverComponent(): React.ReactElement {
     }
   }
 
+  const handleCameraCapture = async (photoData: string) => {
+    setImage(photoData)
+    setShowCamera(false)
+    setIsParsing(true)
+    setParseStatus('parsing')
+
+    try {
+      const parsedGrid = await parseImageToSudoku(photoData)
+      setGrid(parsedGrid.map(row => row.map(cell => cell === 0 ? null : cell)))
+      setHistory([parsedGrid])
+      setParseStatus('success')
+    } catch (error) {
+      setError('Failed to process Sudoku image')
+      setParseStatus('error')
+    } finally {
+      setIsParsing(false)
+    }
+  }
+
   const handleCellChange = (row: number, col: number, value: string) => {
     const newGrid = grid.map(r => [...r]);
     // Only allow single digits
@@ -71,6 +94,15 @@ export default function SudokuSolverComponent(): React.ReactElement {
     setHistory([])
     setSolvedGrid([])
     setImage(null)
+    setError(null)            // Reset error state
+    setIsParsing(false)       // Reset parsing state
+    setParseStatus('idle')    // Reset parse status
+    
+    // Clean up the file input
+    const fileInput = document.getElementById('file-upload') as HTMLInputElement
+    if (fileInput) {
+      fileInput.value = ''    // Clear the file input
+    }
   }
 
   const handleSolve = async () => {
@@ -99,27 +131,49 @@ export default function SudokuSolverComponent(): React.ReactElement {
 
           <div className="flex flex-col lg:flex-row gap-6">
             <div className="lg:w-1/2">
-              <div className="mb-6">
-                <Input
-                  type="file"
-                  accept="image/*"
-                  onChange={handleFileUpload}
-                  className="hidden"
-                  id="file-upload"
-                />
-                <label htmlFor="file-upload" className="cursor-pointer">
-                  <div className="flex items-center justify-center w-full h-32 border-2 border-dashed border-gray-300 rounded-lg hover:border-gray-400 transition-colors">
+              <div className="mb-6 flex gap-4">
+                <div className="flex-1">
+                  <Input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleFileUpload}
+                    className="hidden"
+                    id="file-upload"
+                  />
+                  <label htmlFor="file-upload" className="cursor-pointer">
+                    <div className="flex items-center justify-center w-full h-24 border-2 border-dashed border-gray-300 rounded-lg hover:border-gray-400 transition-colors">
+                      <div className="text-center">
+                        <Upload className="mx-auto h-8 w-8 text-gray-400" />
+                        <span className="mt-2 block text-sm font-medium text-gray-900">
+                          Upload Image
+                        </span>
+                      </div>
+                    </div>
+                  </label>
+                </div>
+                
+                <div className="flex-1">
+                  <div
+                    onClick={() => setShowCamera(true)}
+                    className="cursor-pointer flex items-center justify-center w-full h-24 border-2 border-dashed border-gray-300 rounded-lg hover:border-gray-400 transition-colors"
+                  >
                     <div className="text-center">
-                      <Upload className="mx-auto h-12 w-12 text-gray-400" />
+                      <CameraIcon className="mx-auto h-8 w-8 text-gray-400" />
                       <span className="mt-2 block text-sm font-medium text-gray-900">
-                        Upload Sudoku Image
+                        Take Photo
                       </span>
                     </div>
                   </div>
-                </label>
+                </div>
               </div>
 
-              {image && (
+              {showCamera ? (
+                <CameraView
+                  ref={cameraRef}
+                  onCapture={handleCameraCapture}
+                  onClose={() => setShowCamera(false)}
+                />
+              ) : image && (
                 <>
                   <div className="mb-2">
                     <Image
