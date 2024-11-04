@@ -5,7 +5,7 @@ import Image from 'next/image'
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent } from "@/components/ui/card"
-import { Upload, Undo2, RotateCcw, Check } from 'lucide-react'
+import { Upload, Undo2, RotateCcw, Check, Loader2 } from 'lucide-react'
 import { parseImageToSudoku } from "./actions"
 import { solveSudoku } from "@/lib/solve"
 import { CameraView } from '@/components/Camera'
@@ -206,6 +206,14 @@ export default function SudokuSolverComponent(): React.ReactElement {
                         className="object-contain"
                         sizes="(max-width: 768px) 100vw, 50vw"
                       />
+                      {isParsing && (
+                        <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                          <div className="bg-white p-4 rounded-lg flex flex-col items-center gap-2">
+                            <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+                            <span className="text-sm font-medium">Processing Image...</span>
+                          </div>
+                        </div>
+                      )}
                     </div>
                     <div className={`text-sm font-medium text-center mt-2 ${
                       parseStatus === 'parsing' ? 'text-blue-600' :
@@ -214,7 +222,8 @@ export default function SudokuSolverComponent(): React.ReactElement {
                     }`}>
                       {parseStatus === 'parsing' && (
                         <div className="flex items-center justify-center gap-2">
-                          <span className="animate-spin">⏳</span> Parsing image...
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          <span>Parsing image...</span>
                         </div>
                       )}
                       {parseStatus === 'success' && (
