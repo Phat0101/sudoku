@@ -21,11 +21,14 @@ export default function SudokuSolverComponent(): React.ReactElement {
   const [isParsing, setIsParsing] = useState(false)
   const [parseStatus, setParseStatus] = useState<'idle' | 'parsing' | 'success' | 'error'>('idle')
   const [showCamera, setShowCamera] = useState(false)
+  const [showUpload, setShowUpload] = useState(false)
   const cameraRef = React.useRef<any>(null)
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    setShowCamera(false)  // Just hide the camera
     const file = event.target.files?.[0]
     if (file) {
+      setShowUpload(true)  // Enable upload mode
       const imageUrl = URL.createObjectURL(file)
       setImage(imageUrl)
       setIsParsing(true)
@@ -66,6 +69,19 @@ export default function SudokuSolverComponent(): React.ReactElement {
       setParseStatus('error')
     } finally {
       setIsParsing(false)
+    }
+  }
+
+  const handleCameraClick = () => {
+    // Reset upload related states
+    setShowUpload(false)
+    setImage(null)
+    setShowCamera(true)
+    
+    // Reset file input
+    const fileInput = document.getElementById('file-upload') as HTMLInputElement
+    if (fileInput) {
+      fileInput.value = ''
     }
   }
 
@@ -130,9 +146,11 @@ export default function SudokuSolverComponent(): React.ReactElement {
           <h1 className="text-2xl font-bold mb-6 text-center">Sudoku Solver</h1>
 
           <div className="flex flex-col lg:flex-row gap-6">
-            <div className="lg:w-1/2">
-              <div className="mb-6 flex gap-4">
-                <div className="flex-1">
+            {/* Left Column - Image Input */}
+            <div className="lg:w-1/2 flex flex-col">
+              {/* Upload/Camera Buttons */}
+              <div className="grid grid-cols-2 gap-4 mb-4">
+                <div>
                   <Input
                     type="file"
                     accept="image/*"
@@ -140,7 +158,10 @@ export default function SudokuSolverComponent(): React.ReactElement {
                     className="hidden"
                     id="file-upload"
                   />
-                  <label htmlFor="file-upload" className="cursor-pointer">
+                  <label 
+                    htmlFor="file-upload" 
+                    className="cursor-pointer"
+                  >
                     <div className="flex items-center justify-center w-full h-24 border-2 border-dashed border-gray-300 rounded-lg hover:border-gray-400 transition-colors">
                       <div className="text-center">
                         <Upload className="mx-auto h-8 w-8 text-gray-400" />
@@ -152,65 +173,69 @@ export default function SudokuSolverComponent(): React.ReactElement {
                   </label>
                 </div>
                 
-                <div className="flex-1">
-                  <div
-                    onClick={() => setShowCamera(true)}
-                    className="cursor-pointer flex items-center justify-center w-full h-24 border-2 border-dashed border-gray-300 rounded-lg hover:border-gray-400 transition-colors"
-                  >
-                    <div className="text-center">
-                      <CameraIcon className="mx-auto h-8 w-8 text-gray-400" />
-                      <span className="mt-2 block text-sm font-medium text-gray-900">
-                        Take Photo
-                      </span>
-                    </div>
+                <div
+                  onClick={() => setShowCamera(true)}
+                  className="cursor-pointer flex items-center justify-center w-full h-24 
+                    border-2 border-dashed border-gray-300 rounded-lg 
+                    hover:border-gray-400 transition-colors"
+                >
+                  <div className="text-center">
+                    <CameraIcon className="mx-auto h-8 w-8 text-gray-400" />
+                    <span className="mt-2 block text-sm font-medium text-gray-900">
+                      Take Photo
+                    </span>
                   </div>
                 </div>
               </div>
 
-              {showCamera ? (
-                <CameraView
-                  ref={cameraRef}
-                  onCapture={handleCameraCapture}
-                  onClose={() => setShowCamera(false)}
-                />
-              ) : image && (
-                <>
-                  <div className="mb-2">
-                    <Image
-                      src={image}
-                      alt="Uploaded Sudoku"
-                      width={300}
-                      height={300}
-                      className="w-full object-contain"
-                    />
-                  </div>
-                  <div className={`text-sm font-medium text-center mb-6 ${
-                    parseStatus === 'parsing' ? 'text-blue-600' :
-                    parseStatus === 'success' ? 'text-green-600' :
-                    parseStatus === 'error' ? 'text-red-600' : ''
-                  }`}>
-                    {parseStatus === 'parsing' && (
-                      <div className="flex items-center justify-center gap-2">
-                        <span className="animate-spin">⏳</span> Parsing image...
-                      </div>
-                    )}
-                    {parseStatus === 'success' && (
-                      <div className="flex items-center justify-center gap-2">
-                        <Check className="h-4 w-4" /> Parsing complete
-                      </div>
-                    )}
-                    {parseStatus === 'error' && (
-                      <div className="flex items-center justify-center gap-2 text-red-600">
-                        ❌ Failed to parse image
-                      </div>
-                    )}
-                  </div>
-                </>
-              )}
+              {/* Camera/Image Preview Area */}
+              <div className="relative aspect-square w-full overflow-hidden rounded-lg">
+                {showCamera ? (
+                  <CameraView
+                    ref={cameraRef}
+                    onCapture={handleCameraCapture}
+                    onClose={() => setShowCamera(false)}
+                  />
+                ) : image && (
+                  <>
+                    <div className="relative aspect-square w-full">
+                      <Image
+                        src={image}
+                        alt="Uploaded Sudoku"
+                        fill
+                        className="object-contain"
+                        sizes="(max-width: 768px) 100vw, 50vw"
+                      />
+                    </div>
+                    <div className={`text-sm font-medium text-center mt-2 ${
+                      parseStatus === 'parsing' ? 'text-blue-600' :
+                      parseStatus === 'success' ? 'text-green-600' :
+                      parseStatus === 'error' ? 'text-red-600' : ''
+                    }`}>
+                      {parseStatus === 'parsing' && (
+                        <div className="flex items-center justify-center gap-2">
+                          <span className="animate-spin">⏳</span> Parsing image...
+                        </div>
+                      )}
+                      {parseStatus === 'success' && (
+                        <div className="flex items-center justify-center gap-2">
+                          <Check className="h-4 w-4" /> Parsing complete
+                        </div>
+                      )}
+                      {parseStatus === 'error' && (
+                        <div className="flex items-center justify-center gap-2 text-red-600">
+                          ❌ Failed to parse image
+                        </div>
+                      )}
+                    </div>
+                  </>
+                )}
+              </div>
             </div>
 
-            <div className="lg:w-1/2">
-              <div className="grid grid-cols-9 gap-[1px] bg-gray-400 border-2 border-gray-900 mb-6">
+            {/* Right Column - Grid */}
+            <div className="lg:w-1/2 flex flex-col">
+              <div className="grid grid-cols-9 gap-[1px] bg-gray-400 border-2 border-gray-900 mb-6 aspect-square">
                 {grid.map((row, rowIndex) =>
                   row.map((cell, colIndex) => (
                     <div key={`${rowIndex}-${colIndex}`} className="relative w-full pb-[100%]">
@@ -249,7 +274,7 @@ export default function SudokuSolverComponent(): React.ReactElement {
                 )}
               </div>
 
-              <div className="flex flex-col sm:flex-row justify-between gap-4 mb-6">
+              <div className="flex flex-col sm:flex-row justify-between gap-4">
                 <Button onClick={handleUndo} disabled={history.length <= 1 || isSolving} className="flex-1 sm:flex-initial">
                   <Undo2 className="mr-2 h-4 w-4" /> Undo
                 </Button>
